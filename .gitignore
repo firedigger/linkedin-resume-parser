@@ -1,0 +1,40 @@
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+*.vrb
+*.xdv
+
+# Generated outputs
+*.html
+*.pdf
+
+# Generated resume outputs
+resume.aux
+resume.log
+resume.out
+resume.tex
+europass.xml
+resume.json
+*_resume.json
+*_europass.xml
+*_SWE.tex
+
+# MiKTeX logs
+miktex-logs/
+
+# Python cache
+__pycache__/
+*.py[cod]

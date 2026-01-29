@@ -1,0 +1,31 @@
+{
+  "document_scheme_id": "Test-0001",
+  "document_scheme_name": "DocumentIdentifier",
+  "document_scheme_agency": "EUROPASS",
+  "document_scheme_version": "4.0",
+  "party_scheme_id": "Test-0001",
+  "party_scheme_name": "PartyID",
+  "party_scheme_agency": "EUROPASS",
+  "party_scheme_version": "1.0",
+  "party_name": "Owner",
+  "precedence_code": "1",
+  "profile_scheme_id": "Test-0001",
+  "profile_scheme_name": "CandidateProfileID",
+  "profile_scheme_agency": "EUROPASS",
+  "profile_scheme_version": "1.0",
+  "candidate_profile_id": "697a6e732106d162e2391d2c",
+  "position_uri": "http://data.europa.eu/esco/occupation/f2b15a0e-e65a-438a-affb-29b9d50b77d1",
+  "address_use": "home",
+  "address_type": "home",
+  "template": "Template1",
+  "color": "Default",
+  "font_size": "Medium",
+  "logo": "FirstPage",
+  "page_numbers": false,
+  "sections_order": [
+    "education-training",
+    "work-experience",
+    "profile-skills",
+    "language"
+  ]
+}
