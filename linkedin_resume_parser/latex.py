@@ -92,55 +92,84 @@ CYRILLIC_MAP = {
 
 
 def render_resume_latex(
-    resume_path: Path, template_path: Path, output_path: Path
+    resume_path: Path, template_path: Path, output_path: Path, basic_mode: bool = False
 ) -> None:
     resume = load_json(resume_path)
     template = template_path.read_text(encoding="utf-8")
-    rendered = apply_template(template, resume)
+    rendered = apply_template(template, resume, basic_mode=basic_mode)
     output_path.write_text(rendered, encoding="utf-8")
 
 
-def apply_template(template: str, resume: dict[str, Any]) -> str:
+def apply_template(template: str, resume: dict[str, Any], basic_mode: bool = False) -> str:
     basics = resume.get("basics", {})
     name = latex_escape(basics.get("name", ""))
-    contact_line = build_contact_line(basics)
-    education_section = build_education_section(resume.get("education", []))
-    experience_section = build_experience_section(resume.get("work", []))
+    contact_line = build_contact_line(basics, include_location=not basic_mode)
+    education_section = build_education_section(
+        resume.get("education", []), include_years=not basic_mode
+    )
+    work_entries = resume.get("work", [])
+    experience_section = build_experience_section(
+        work_entries, include_years=not basic_mode
+    )
     project_section = build_project_section(resume.get("projects", []))
-    skills_block = build_skills_block(resume.get("skills", []))
+    skills_list = build_skills_block(resume.get("skills", []))
+    skills_section = build_skills_section(resume.get("skills", []))
+    label_line = "" if basic_mode else build_label_line(basics)
+    summary_section = "" if basic_mode else build_summary_section(basics)
+    certifications_section = "" if basic_mode else build_certifications_section(
+        resume.get("certificates", [])
+    )
+    languages_section = "" if basic_mode else build_languages_section(resume.get("languages", []))
 
     replacements = {
         "{{NAME}}": name,
+        "{{LABEL_LINE}}": label_line,
         "{{CONTACT_LINE}}": contact_line,
+        "{{SUMMARY_SECTION}}": summary_section,
         "{{EDUCATION_SECTION}}": education_section,
         "{{EXPERIENCE_SECTION}}": experience_section,
         "{{PROJECT_SECTION}}": project_section,
-        "{{SKILLS_BLOCK}}": skills_block,
+        "{{SKILLS_SECTION}}": skills_section,
+        "{{SKILLS_BLOCK}}": skills_list,
+        "{{CERTIFICATIONS_SECTION}}": certifications_section,
+        "{{LANGUAGES_SECTION}}": languages_section,
     }
     for token, value in replacements.items():
         template = template.replace(token, value)
     return template
 
 
-def build_contact_line(basics: dict[str, Any]) -> str:
+def build_contact_line(basics: dict[str, Any], include_location: bool = True) -> str:
     parts = []
+    link_parts = []
     phone = (basics.get("phone") or "").strip()
     email = (basics.get("email") or "").strip()
+    location = build_location(basics.get("location") or {}) if include_location else ""
     profiles = basics.get("profiles") or []
     linkedin = find_profile(profiles, "LinkedIn")
     github = find_profile(profiles, "GitHub")
 
+    if location:
+        parts.append(latex_escape(location))
     if phone:
         parts.append(latex_escape(phone))
     if email:
         email_text = latex_escape(email)
         parts.append(rf"\href{{mailto:{email_text}}}{{\underline{{{email_text}}}}}")
     if linkedin:
-        parts.append(build_profile_link(linkedin))
+        link_parts.append(build_profile_link(linkedin))
     if github:
-        parts.append(build_profile_link(github))
+        link_parts.append(build_profile_link(github))
 
-    return r" $|$ ".join(parts)
+    if link_parts:
+        parts.extend(link_parts)
+
+    if len(parts) <= 4 or not link_parts:
+        return r" $|$ ".join(parts)
+
+    primary = parts[:-len(link_parts)]
+    secondary = link_parts
+    return r" $|$ ".join(primary) + r" \\" + "\n" + r" $|$ ".join(secondary)
 
 
 def build_profile_link(profile: dict[str, Any]) -> str:
@@ -153,6 +182,34 @@ def build_profile_link(profile: dict[str, Any]) -> str:
     label_text = latex_escape(label)
     url_text = latex_escape_url(normalize_url(url))
     return rf"\href{{{url_text}}}{{\underline{{{label_text}}}}}"
+
+
+def build_location(location: dict[str, Any]) -> str:
+    address = (location.get("address") or "").strip()
+    if address:
+        return address
+    parts = []
+    for key in ("city", "region", "countryCode"):
+        value = (location.get(key) or "").strip()
+        if value:
+            parts.append(value)
+    return ", ".join(parts)
+
+
+def build_label_line(basics: dict[str, Any]) -> str:
+    label = (basics.get("label") or "").strip()
+    if not label:
+        return ""
+    label_text = latex_escape(label)
+    return rf"\small \textit{{{label_text}}} \\ \vspace{{1pt}}"
+
+
+def build_summary_section(basics: dict[str, Any]) -> str:
+    summary = (basics.get("summary") or "").strip()
+    if not summary:
+        return ""
+    summary_text = latex_escape(summary)
+    return "\\section{Summary}\n  \\small{" + summary_text + "}\n"
 
 
 def build_education_entries(education: list[dict[str, Any]]) -> str:
@@ -170,12 +227,19 @@ def build_education_entries(education: list[dict[str, Any]]) -> str:
     return "\n    ".join(lines)
 
 
-def build_education_section(education: list[dict[str, Any]]) -> str:
+def build_education_section(
+    education: list[dict[str, Any]], include_years: bool = True
+) -> str:
     entries = build_education_entries(education)
     if not entries:
         return ""
+    title = "Education"
+    if include_years:
+        years = calculate_education_years(education)
+        if years:
+            title = f"Education ({years} years)"
     return (
-        "\\section{Education}\n"
+        f"\\section{{{title}}}\n"
         "  \\resumeSubHeadingListStart\n"
         f"    {entries}\n"
         "  \\resumeSubHeadingListEnd\n"
@@ -218,12 +282,19 @@ def build_experience_entries(work: list[dict[str, Any]]) -> str:
     return "\n    ".join(lines).rstrip()
 
 
-def build_experience_section(work: list[dict[str, Any]]) -> str:
+def build_experience_section(
+    work: list[dict[str, Any]], include_years: bool = True
+) -> str:
     entries = build_experience_entries(work)
     if not entries:
         return ""
+    title = "Experience"
+    if include_years:
+        years = calculate_years_experience(work)
+        if years:
+            title = f"Experience ({years} years)"
     return (
-        "\\section{Experience}\n"
+        f"\\section{{{title}}}\n"
         "  \\resumeSubHeadingListStart\n"
         f"    {entries}\n"
         "  \\resumeSubHeadingListEnd\n"
@@ -233,7 +304,14 @@ def build_experience_section(work: list[dict[str, Any]]) -> str:
 def build_project_entries(projects: list[dict[str, Any]]) -> str:
     lines = []
     for entry in projects:
-        name = latex_escape(entry.get("name", ""))
+        name_raw = (entry.get("name") or "").strip()
+        if not name_raw:
+            continue
+        url = (entry.get("url") or "").strip()
+        name = latex_escape(name_raw)
+        if url:
+            url_text = latex_escape_url(normalize_url(url))
+            name = rf"\href{{{url_text}}}{{\underline{{{name}}}}}"
         description = latex_escape(entry.get("description", ""))
         date_range = latex_escape(format_date_range(entry.get("startDate"), entry.get("endDate")))
         header = r"\resumeProjectHeading" f"\n          {{\\textbf{{{name}}}}}{{{date_range}}}"
@@ -269,8 +347,81 @@ def build_skills_list(skills: list[dict[str, Any]]) -> str:
 def build_skills_block(skills: list[dict[str, Any]]) -> str:
     names = build_skills_list(skills)
     if not names:
-        return r"\textbf{Skills}{: }"
-    return rf"\textbf{{Skills}}{{: {names}}}"
+        return ""
+    return names
+
+
+def build_skills_section(skills: list[dict[str, Any]]) -> str:
+    names = build_skills_block(skills)
+    if not names:
+        return ""
+    return (
+        "\\section{Technical Skills}\n"
+        " \\begin{itemize}[leftmargin=0.15in, label={}]\n"
+        f"    \\small{{\\item{{\n     {names}\n    }}}}\n"
+        " \\end{itemize}\n"
+    )
+
+
+def build_certification_lines(certificates: list[dict[str, Any]]) -> list[str]:
+    lines = []
+    for entry in certificates:
+        name_raw = (entry.get("name") or "").strip()
+        if not name_raw:
+            continue
+        issuer = (entry.get("issuer") or "").strip()
+        date_text = format_date(entry.get("date")) if entry.get("date") else ""
+        url = (entry.get("url") or "").strip()
+        meta_parts = []
+        if issuer:
+            meta_parts.append(latex_escape(issuer))
+        if date_text:
+            meta_parts.append(latex_escape(date_text))
+        name_text = latex_escape(name_raw)
+        if url:
+            url_text = latex_escape_url(normalize_url(url))
+            name_text = rf"\href{{{url_text}}}{{\underline{{{name_text}}}}}"
+        if meta_parts:
+            lines.append(f"{name_text} ({', '.join(meta_parts)})")
+        else:
+            lines.append(name_text)
+    return lines
+
+
+def build_certifications_section(certificates: list[dict[str, Any]]) -> str:
+    lines = build_certification_lines(certificates)
+    if not lines:
+        return ""
+    items = "\n".join(f"    \\resumeItem{{{line}}}" for line in lines)
+    return (
+        "\\section{Certifications}\n"
+        "  \\resumeItemListStart\n"
+        f"{items}\n"
+        "  \\resumeItemListEnd\n"
+    )
+
+
+def build_languages_section(languages: list[dict[str, Any]]) -> str:
+    lines = []
+    for entry in languages:
+        language = (entry.get("language") or "").strip()
+        if not language:
+            continue
+        fluency = (entry.get("fluency") or "").strip()
+        language_text = latex_escape(language)
+        if fluency:
+            lines.append(f"{language_text} --- {latex_escape(fluency)}")
+        else:
+            lines.append(language_text)
+    if not lines:
+        return ""
+    items = "\n".join(f"    \\resumeItem{{{line}}}" for line in lines)
+    return (
+        "\\section{Languages}\n"
+        "  \\resumeItemListStart\n"
+        f"{items}\n"
+        "  \\resumeItemListEnd\n"
+    )
 
 
 def format_date_range(start: str | None, end: str | None) -> str:
@@ -290,6 +441,64 @@ def format_date(value: str | None) -> str:
         return year
     month = MONTHS.get(parts[1], parts[1])
     return f"{month} {year}"
+
+
+def calculate_years_experience(work: list[dict[str, Any]]) -> int:
+    total_months = 0
+    today = datetime.today()
+    for entry in work:
+        start = parse_year_month(entry.get("startDate"))
+        end_raw = entry.get("endDate")
+        if end_raw:
+            end = parse_year_month(end_raw) or today
+        else:
+            end = today
+        if not start or not end:
+            continue
+        if end < start:
+            continue
+        total_months += (end.year - start.year) * 12 + (end.month - start.month)
+    if total_months <= 0:
+        return 0
+    return max(1, total_months // 12)
+
+
+def calculate_education_years(education: list[dict[str, Any]]) -> int:
+    start_dates = []
+    end_dates = []
+    for entry in education:
+        start = parse_year_month(entry.get("startDate"))
+        end_raw = entry.get("endDate")
+        end = parse_year_month(end_raw) if end_raw else None
+        if start:
+            start_dates.append(start)
+        if end:
+            end_dates.append(end)
+        elif start:
+            end_dates.append(start)
+    if not start_dates or not end_dates:
+        return 0
+    start = min(start_dates)
+    end = max(end_dates)
+    if end < start:
+        return 0
+    total_months = (end.year - start.year) * 12 + (end.month - start.month)
+    if total_months <= 0:
+        return 0
+    return max(1, total_months // 12)
+
+
+def parse_year_month(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    parts = value.split("-")
+    if not parts[0].isdigit():
+        return None
+    year = int(parts[0])
+    month = 1
+    if len(parts) > 1 and parts[1].isdigit():
+        month = max(1, min(12, int(parts[1])))
+    return datetime(year, month, 1)
 
 
 def latex_escape(value: str) -> str:
@@ -373,7 +582,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Render resume.json into a LaTeX template."
     )
-    parser.add_argument("resume", type=Path, help="Path to resume.json")
+    parser.add_argument(
+        "resume",
+        type=Path,
+        nargs="?",
+        default=Path("resume.json"),
+        help="Path to resume.json",
+    )
     parser.add_argument(
         "-t",
         "--template",
@@ -388,13 +603,23 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=Path("resume.tex"),
         help="Output LaTeX file path",
     )
+    parser.add_argument(
+        "--basic",
+        action="store_true",
+        help="Render only the original template sections.",
+    )
     return parser
 
 
 def main() -> int:
     parser = build_arg_parser()
     args = parser.parse_args()
-    render_resume_latex(args.resume, args.template, args.output)
+    template_path = args.template
+    if args.basic and template_path == Path("template.tex"):
+        basic_template = Path("template_basic.tex")
+        if basic_template.exists():
+            template_path = basic_template
+    render_resume_latex(args.resume, template_path, args.output, basic_mode=args.basic)
     return 0
 
 

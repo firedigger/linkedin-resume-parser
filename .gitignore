@@ -21,16 +21,22 @@
 *.html
 *.pdf
 
+Skills.csv
+Certifications.csv
+Projects.csv
+
 # Generated resume outputs
 resume.aux
 resume.log
 resume.out
 resume.tex
+resume_basic.tex
 europass.xml
 resume.json
 *_resume.json
 *_europass.xml
 *_SWE.tex
+*_SWE_basic.tex
 
 # MiKTeX logs
 miktex-logs/

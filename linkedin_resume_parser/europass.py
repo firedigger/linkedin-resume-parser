@@ -417,7 +417,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Export JSON Resume to Europass Candidate XML."
     )
-    parser.add_argument("resume", type=Path, help="Path to resume.json")
+    parser.add_argument(
+        "resume",
+        type=Path,
+        nargs="?",
+        default=Path("resume.json"),
+        help="Path to resume.json",
+    )
     parser.add_argument(
         "-m",
         "--metadata",

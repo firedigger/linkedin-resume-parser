@@ -3,11 +3,15 @@ param(
     [string]$LinkedInPdf,
     [string]$ResumeJson,
     [string]$PersonalInfo = "personal_info.json",
+    [string]$SkillsCsv = "Skills.csv",
+    [string]$CertificationsCsv = "Certifications.csv",
+    [string]$ProjectsCsv = "Projects.csv",
     [string]$Template = "template.tex",
     [string]$TexOut,
     [string]$EuropassXml,
     [string]$EuropassConfig = "europass_config.json",
-    [switch]$SkipEuropass
+    [switch]$SkipEuropass,
+    [switch]$Basic
 )
 
 if (-not (Test-Path $LinkedInPdf)) {
@@ -29,37 +33,9 @@ if (-not (Get-Command pdflatex -ErrorAction SilentlyContinue)) {
     throw "pdflatex not found. Install MiKTeX or TeX Live and ensure it is on PATH."
 }
 
-python -m linkedin_resume_parser.cli $LinkedInPdf -o $ResumeJson
+python -m linkedin_resume_parser.cli $LinkedInPdf -o $ResumeJson --personal-info $PersonalInfo --skills-csv $SkillsCsv --certifications-csv $CertificationsCsv --projects-csv $ProjectsCsv
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
-}
-
-if (Test-Path $PersonalInfo) {
-    $resume = Get-Content $ResumeJson -Raw | ConvertFrom-Json
-    $personal = Get-Content $PersonalInfo -Raw | ConvertFrom-Json
-
-    if ($personal.skills) {
-        if (-not $resume.skills) {
-            $resume.skills = @()
-        }
-
-        $existing = @{}
-        foreach ($entry in $resume.skills) {
-            if ($null -ne $entry.name) {
-                $existing[$entry.name.ToString().Trim().ToLowerInvariant()] = $true
-            }
-        }
-
-        foreach ($name in $personal.skills) {
-            $cleanName = $name.ToString().Trim()
-            if ($cleanName.Length -gt 0 -and -not $existing.ContainsKey($cleanName.ToLowerInvariant())) {
-                $resume.skills += [pscustomobject]@{ name = $cleanName }
-                $existing[$cleanName.ToLowerInvariant()] = $true
-            }
-        }
-
-        $resume | ConvertTo-Json -Depth 10 | Set-Content -Path $ResumeJson -Encoding UTF8
-    }
 }
 
 if (-not $SkipEuropass) {
@@ -72,11 +48,23 @@ if (-not $SkipEuropass) {
 
     python -m linkedin_resume_parser.europass $ResumeJson -m $PersonalInfo -c $EuropassConfig -o $EuropassXml
     if ($LASTEXITCODE -ne 0) {
-        exit $LASTEXITCODE
+        Write-Warning "Europass export failed (exit code $LASTEXITCODE). Continuing."
     }
 }
 
-python -m linkedin_resume_parser.latex $ResumeJson -t $Template -o $TexOut
+$basicArgs = @()
+$templatePath = $Template
+if ($Basic) {
+    $basicArgs = @("--basic")
+    if ($Template -eq "template.tex") {
+        $templatePath = "template_basic.tex"
+    }
+    if ($TexOut -eq "${baseName}_SWE.tex") {
+        $TexOut = "${baseName}_SWE_basic.tex"
+    }
+}
+
+python -m linkedin_resume_parser.latex $ResumeJson -t $templatePath -o $TexOut @basicArgs
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
@@ -86,5 +74,21 @@ if (-not $outputDir) {
     $outputDir = "."
 }
 
-pdflatex -interaction=nonstopmode -halt-on-error -output-directory $outputDir $TexOut 2>&1 | Out-Null
-exit $LASTEXITCODE
+$pdfName = [IO.Path]::GetFileNameWithoutExtension($TexOut) + ".pdf"
+$pdfPath = Join-Path $outputDir $pdfName
+$logPath = Join-Path $outputDir ([IO.Path]::GetFileNameWithoutExtension($TexOut) + ".pdflatex.log")
+
+pdflatex -interaction=nonstopmode -halt-on-error -output-directory $outputDir $TexOut *> $logPath
+$exitCode = $LASTEXITCODE
+
+if ($exitCode -ne 0 -or -not (Test-Path $pdfPath)) {
+    Write-Error "pdflatex failed or PDF not produced. Exit code: $exitCode"
+    Write-Error "See log: $logPath"
+    if (Test-Path $logPath) {
+        Write-Output "Last 40 lines of pdflatex log:"
+        Get-Content $logPath -Tail 40
+    }
+    exit 1
+}
+
+exit 0

@@ -6,5 +6,5 @@
   "gender": "male",
   "municipality": "Espoo",
   "phone": "",
-  "skills": ["SQL Server"]
+  "additional_skills": []
 }

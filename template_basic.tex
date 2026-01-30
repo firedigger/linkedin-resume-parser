@@ -1,10 +1,9 @@
 %-------------------------
-% Resume in LaTeX
-% Original author: Jake Gutierrez
-% Modified by: Aleksandr Makarov for this project
-% Based on: https://github.com/sb2nov/resume
-% License: MIT
-%-------------------------
+% Resume in Latex
+% Author : Jake Gutierrez
+% Based off of: https://github.com/sb2nov/resume
+% License : MIT
+%------------------------
 
 \documentclass[letterpaper,11pt]{article}
 
@@ -108,25 +107,28 @@
 
 \begin{document}
 
-
 \begin{center}
     \textbf{\Huge \scshape {{NAME}}} \\ \vspace{1pt}
-    {{LABEL_LINE}}
     \small {{CONTACT_LINE}}
 \end{center}
 
-{{SUMMARY_SECTION}}
+{{EDUCATION_SECTION}}
 
 {{EXPERIENCE_SECTION}}
 
-{{EDUCATION_SECTION}}
-
 {{PROJECT_SECTION}}
 
-{{SKILLS_SECTION}}
 
-{{CERTIFICATIONS_SECTION}}
 
-{{LANGUAGES_SECTION}}
+%
+%-----------PROGRAMMING SKILLS-----------
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     {{SKILLS_BLOCK}}
+    }}
+ \end{itemize}
 
+
+%-------------------------------------------
 \end{document}
