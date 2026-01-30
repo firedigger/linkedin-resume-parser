@@ -292,7 +292,7 @@ def words_to_line(words: list[dict], page_index: int) -> Line:
 def split_sections(lines: list[Line]) -> dict[str, list[Line]]:
     sections: dict[str, list[Line]] = defaultdict(list)
     split = detect_column_split(lines)
-    current_section = {"left": None, "right": None}
+    current_section: dict[str, str | None] = {"left": None, "right": None}
     for line in lines:
         if is_page_header(line.text):
             continue
@@ -389,8 +389,26 @@ def find_location(lines: list[Line]) -> str:
     return ""
 
 
+LOCATION_KEYWORDS = {
+    "area",
+    "region",
+    "province",
+    "state",
+    "metropolitan",
+    "область",
+    "край",
+    "регион",
+    "агломерация",
+    "район",
+    "республика",
+}
+
+
 def is_location_text(text: str) -> bool:
-    return "," in text and len(text) <= 60
+    lowered = text.lower()
+    if "," in text and len(text) <= 60:
+        return True
+    return len(text) <= 60 and any(keyword in lowered for keyword in LOCATION_KEYWORDS)
 
 
 def find_phone(lines: list[Line]) -> str:
@@ -419,17 +437,26 @@ def build_profiles(urls: Iterable[str], lines: list[Line]) -> list[dict]:
         "linkedin.com/in/" in url.lower() and not url.rstrip("/").endswith("-")
         for url in collected
     )
+    seen = set()
     for url in collected:
         clean = url
-        if "linkedin.com/in/" in clean.lower() and clean.rstrip("/").endswith("-") and has_full_linkedin:
-            continue
+        lower = clean.lower()
+        if "linkedin.com/in/" in lower and has_full_linkedin:
+            if clean.rstrip("/").endswith("-"):
+                continue
+            if lower.endswith("/in") or lower.endswith("/in/"):
+                continue
         network = ""
-        if "linkedin.com" in clean.lower():
+        if "linkedin.com" in lower:
             network = "LinkedIn"
-        elif "github.com" in clean.lower():
+        elif "github.com" in lower:
             network = "GitHub"
-        elif "twitter.com" in clean.lower():
+        elif "twitter.com" in lower:
             network = "Twitter"
+        key = f"{network.lower()}::{clean.rstrip('/').lower()}"
+        if key in seen:
+            continue
+        seen.add(key)
         profiles.append({"network": network or "Website", "url": clean})
     return profiles
 
@@ -1132,7 +1159,7 @@ def is_position_only_start(lines: list[Line], idx: int) -> bool:
         return False
     next_text = lines[idx + 1].text.strip() if idx + 1 < len(lines) else ""
     prev_text = lines[idx - 1].text.strip() if idx > 0 else ""
-    return DATE_RANGE_RE.search(next_text) and not is_duration_line(prev_text)
+    return bool(DATE_RANGE_RE.search(next_text)) and not is_duration_line(prev_text)
 
 
 def is_company_line(lines: list[Line], idx: int) -> bool:

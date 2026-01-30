@@ -6,6 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from unidecode import unidecode
+
 MONTHS = {
     "01": "Jan.",
     "02": "Feb.",
@@ -21,86 +23,39 @@ MONTHS = {
     "12": "Dec.",
 }
 
-CYRILLIC_MAP = {
-    "А": "A",
-    "Б": "B",
-    "В": "V",
-    "Г": "G",
-    "Д": "D",
-    "Е": "E",
-    "Ё": "E",
-    "Ж": "Zh",
-    "З": "Z",
-    "И": "I",
-    "Й": "I",
-    "К": "K",
-    "Л": "L",
-    "М": "M",
-    "Н": "N",
-    "О": "O",
-    "П": "P",
-    "Р": "R",
-    "С": "S",
-    "Т": "T",
-    "У": "U",
-    "Ф": "F",
-    "Х": "Kh",
-    "Ц": "Ts",
-    "Ч": "Ch",
-    "Ш": "Sh",
-    "Щ": "Shch",
-    "Ъ": "",
-    "Ы": "Y",
-    "Ь": "",
-    "Э": "E",
-    "Ю": "Yu",
-    "Я": "Ya",
-    "а": "a",
-    "б": "b",
-    "в": "v",
-    "г": "g",
-    "д": "d",
-    "е": "e",
-    "ё": "e",
-    "ж": "zh",
-    "з": "z",
-    "и": "i",
-    "й": "i",
-    "к": "k",
-    "л": "l",
-    "м": "m",
-    "н": "n",
-    "о": "o",
-    "п": "p",
-    "р": "r",
-    "с": "s",
-    "т": "t",
-    "у": "u",
-    "ф": "f",
-    "х": "kh",
-    "ц": "ts",
-    "ч": "ch",
-    "ш": "sh",
-    "щ": "shch",
-    "ъ": "",
-    "ы": "y",
-    "ь": "",
-    "э": "e",
-    "ю": "yu",
-    "я": "ya",
-}
+_LATINIZE = False
 
 
 def render_resume_latex(
-    resume_path: Path, template_path: Path, output_path: Path, basic_mode: bool = False
+    resume_path: Path,
+    template_path: Path,
+    output_path: Path,
+    basic_mode: bool = False,
+    latinize: bool = False,
+    font_name: str | None = None,
 ) -> None:
     resume = load_json(resume_path)
+    global _LATINIZE
+    _LATINIZE = latinize
+    unicode_enabled = (not latinize) and contains_non_ascii(resume)
     template = template_path.read_text(encoding="utf-8")
-    rendered = apply_template(template, resume, basic_mode=basic_mode)
+    rendered = apply_template(
+        template,
+        resume,
+        basic_mode=basic_mode,
+        unicode_enabled=unicode_enabled,
+        font_name=font_name,
+    )
     output_path.write_text(rendered, encoding="utf-8")
 
 
-def apply_template(template: str, resume: dict[str, Any], basic_mode: bool = False) -> str:
+def apply_template(
+    template: str,
+    resume: dict[str, Any],
+    basic_mode: bool = False,
+    unicode_enabled: bool = False,
+    font_name: str | None = None,
+) -> str:
     basics = resume.get("basics", {})
     name = latex_escape(basics.get("name", ""))
     contact_line = build_contact_line(basics, include_location=not basic_mode)
@@ -120,6 +75,26 @@ def apply_template(template: str, resume: dict[str, Any], basic_mode: bool = Fal
         resume.get("certificates", [])
     )
     languages_section = "" if basic_mode else build_languages_section(resume.get("languages", []))
+    if unicode_enabled:
+        if font_name:
+            font_setup = f"\\\\usepackage{{fontspec}}\\n\\\\setmainfont{{{font_name}}}"
+        else:
+            font_setup = (
+                "\\usepackage{fontspec}\n"
+                "\\IfFontExistsTF{TeX Gyre Termes}{\\setmainfont{TeX Gyre Termes}}{\n"
+                "  \\IfFontExistsTF{Times New Roman}{\\setmainfont{Times New Roman}}{\n"
+                "    \\IfFontExistsTF{Libertinus Serif}{\\setmainfont{Libertinus Serif}}{\n"
+                "      \\IfFontExistsTF{Latin Modern Roman}{\\setmainfont{Latin Modern Roman}}{\n"
+                "        \\setmainfont{Times New Roman}\n"
+                "      }\n"
+                "    }\n"
+                "  }\n"
+                "}\n"
+            )
+        pdftex_setup = ""
+    else:
+        font_setup = "\\usepackage[T1]{fontenc}\n\\usepackage{lmodern}"
+        pdftex_setup = "\\input{glyphtounicode}\n\\pdfgentounicode=1"
 
     replacements = {
         "{{NAME}}": name,
@@ -133,6 +108,8 @@ def apply_template(template: str, resume: dict[str, Any], basic_mode: bool = Fal
         "{{SKILLS_BLOCK}}": skills_list,
         "{{CERTIFICATIONS_SECTION}}": certifications_section,
         "{{LANGUAGES_SECTION}}": languages_section,
+        "{{FONT_SETUP}}": font_setup,
+        "{{PDFTEX_SETUP}}": pdftex_setup,
     }
     for token, value in replacements.items():
         template = template.replace(token, value)
@@ -504,7 +481,8 @@ def parse_year_month(value: str | None) -> datetime | None:
 def latex_escape(value: str) -> str:
     if not value:
         return ""
-    value = to_ascii(value)
+    if _LATINIZE:
+        value = latinize_text(value)
     replacements = {
         "\\": r"\textbackslash{}",
         "&": r"\&",
@@ -526,7 +504,8 @@ def latex_escape(value: str) -> str:
 def latex_escape_url(value: str) -> str:
     if not value:
         return ""
-    value = to_ascii(value)
+    if _LATINIZE:
+        value = latinize_text(value)
     replacements = {
         "\\": r"\textbackslash{}",
         "%": r"\%",
@@ -544,11 +523,25 @@ def latex_escape_url(value: str) -> str:
     return escaped
 
 
-def to_ascii(value: str) -> str:
+def latinize_text(value: str) -> str:
     if not value:
         return ""
-    value = "".join(CYRILLIC_MAP.get(ch, ch) for ch in value)
-    return value.encode("ascii", "ignore").decode("ascii")
+    return unidecode(value)
+
+
+def contains_non_ascii(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return any(ord(ch) > 127 for ch in value)
+    if isinstance(value, dict):
+        return any(
+            contains_non_ascii(key) or contains_non_ascii(val)
+            for key, val in value.items()
+        )
+    if isinstance(value, (list, tuple)):
+        return any(contains_non_ascii(item) for item in value)
+    return False
 
 
 def normalize_url(value: str) -> str:
@@ -568,9 +561,14 @@ def strip_scheme(value: str) -> str:
 
 
 def find_profile(profiles: list[dict[str, Any]], network: str) -> dict[str, Any] | None:
+    matches = []
     for profile in profiles:
         if (profile.get("network") or "").lower() == network.lower():
-            return profile
+            if (profile.get("url") or "").strip():
+                return profile
+            matches.append(profile)
+    if matches:
+        return matches[0]
     return None
 
 
@@ -608,6 +606,15 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Render only the original template sections.",
     )
+    parser.add_argument(
+        "--latinize",
+        action="store_true",
+        help="Transliterate non-ASCII text to ASCII for pdflatex.",
+    )
+    parser.add_argument(
+        "--font",
+        help="Font name for Unicode output (used with xelatex/lualatex).",
+    )
     return parser
 
 
@@ -619,7 +626,14 @@ def main() -> int:
         basic_template = Path("template_basic.tex")
         if basic_template.exists():
             template_path = basic_template
-    render_resume_latex(args.resume, template_path, args.output, basic_mode=args.basic)
+    render_resume_latex(
+        args.resume,
+        template_path,
+        args.output,
+        basic_mode=args.basic,
+        latinize=args.latinize,
+        font_name=args.font,
+    )
     return 0
 
 

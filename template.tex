@@ -19,9 +19,7 @@
 \usepackage{fancyhdr}
 \usepackage[english]{babel}
 \usepackage{tabularx}
-\input{glyphtounicode}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}
+{{FONT_SETUP}}
 
 
 %----------FONT OPTIONS----------
@@ -61,7 +59,7 @@
 }{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
 
 % Ensure that generate pdf is machine readable/ATS parsable
-\pdfgentounicode=1
+{{PDFTEX_SETUP}}
 
 %-------------------------
 % Custom commands

@@ -11,7 +11,9 @@ param(
     [string]$EuropassXml,
     [string]$EuropassConfig = "europass_config.json",
     [switch]$SkipEuropass,
-    [switch]$Basic
+    [switch]$Basic,
+    [switch]$Latinize,
+    [switch]$ForcePdfLatex
 )
 
 if (-not (Test-Path $LinkedInPdf)) {
@@ -27,10 +29,6 @@ if ([string]::IsNullOrWhiteSpace($TexOut)) {
 }
 if ([string]::IsNullOrWhiteSpace($EuropassXml)) {
     $EuropassXml = "${baseName}_europass.xml"
-}
-
-if (-not (Get-Command pdflatex -ErrorAction SilentlyContinue)) {
-    throw "pdflatex not found. Install MiKTeX or TeX Live and ensure it is on PATH."
 }
 
 python -m linkedin_resume_parser.cli $LinkedInPdf -o $ResumeJson --personal-info $PersonalInfo --skills-csv $SkillsCsv --certifications-csv $CertificationsCsv --projects-csv $ProjectsCsv
@@ -52,10 +50,11 @@ if (-not $SkipEuropass) {
     }
 }
 
-$basicArgs = @()
+$latexArgs = @()
 $templatePath = $Template
+$forcePdfLatexLocal = $ForcePdfLatex
 if ($Basic) {
-    $basicArgs = @("--basic")
+    $latexArgs += "--basic"
     if ($Template -eq "template.tex") {
         $templatePath = "template_basic.tex"
     }
@@ -64,7 +63,12 @@ if ($Basic) {
     }
 }
 
-python -m linkedin_resume_parser.latex $ResumeJson -t $templatePath -o $TexOut @basicArgs
+if ($Latinize) {
+    $latexArgs += "--latinize"
+    $forcePdfLatexLocal = $true
+}
+
+python -m linkedin_resume_parser.latex $ResumeJson -t $templatePath -o $TexOut @latexArgs
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
@@ -76,16 +80,39 @@ if (-not $outputDir) {
 
 $pdfName = [IO.Path]::GetFileNameWithoutExtension($TexOut) + ".pdf"
 $pdfPath = Join-Path $outputDir $pdfName
-$logPath = Join-Path $outputDir ([IO.Path]::GetFileNameWithoutExtension($TexOut) + ".pdflatex.log")
 
-pdflatex -interaction=nonstopmode -halt-on-error -output-directory $outputDir $TexOut *> $logPath
+$texContent = Get-Content -Path $TexOut -Raw -Encoding UTF8
+$hasNonAscii = $texContent -match '[^\u0000-\u007F]'
+
+if ($forcePdfLatexLocal -and -not $Latinize -and $hasNonAscii) {
+    throw "Non-ASCII content detected. Use -Latinize or allow Unicode engine switching."
+}
+
+$engine = "pdflatex"
+if (-not $forcePdfLatexLocal -and $hasNonAscii) {
+    if (Get-Command xelatex -ErrorAction SilentlyContinue) {
+        $engine = "xelatex"
+    } elseif (Get-Command lualatex -ErrorAction SilentlyContinue) {
+        $engine = "lualatex"
+    } else {
+        throw "xelatex or lualatex not found. Install MiKTeX or TeX Live with Unicode support and ensure it is on PATH."
+    }
+}
+
+if ($engine -eq "pdflatex" -and -not (Get-Command pdflatex -ErrorAction SilentlyContinue)) {
+    throw "pdflatex not found. Install MiKTeX or TeX Live and ensure it is on PATH."
+}
+
+$logPath = Join-Path $outputDir ([IO.Path]::GetFileNameWithoutExtension($TexOut) + ".${engine}.log")
+
+& $engine -interaction=nonstopmode -halt-on-error -output-directory $outputDir $TexOut *> $logPath
 $exitCode = $LASTEXITCODE
 
 if ($exitCode -ne 0 -or -not (Test-Path $pdfPath)) {
-    Write-Error "pdflatex failed or PDF not produced. Exit code: $exitCode"
+    Write-Error "$engine failed or PDF not produced. Exit code: $exitCode"
     Write-Error "See log: $logPath"
     if (Test-Path $logPath) {
-        Write-Output "Last 40 lines of pdflatex log:"
+        Write-Output "Last 40 lines of $engine log:"
         Get-Content $logPath -Tail 40
     }
     exit 1

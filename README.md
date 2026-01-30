@@ -29,7 +29,7 @@ The LaTeX template in `template.tex` is a modification of Jake's original resume
 
 ## Requirements
 - Python 3.11+
-- `pdflatex` (MiKTeX or TeX Live) for LaTeX/PDF output. MiKTeX download: https://miktex.org/download
+- LaTeX engine: `pdflatex` for ASCII-only output, `xelatex` or `lualatex` for Unicode output (MiKTeX or TeX Live). MiKTeX download: https://miktex.org/download
 
 ## Installation
 ```bash
@@ -46,6 +46,7 @@ Fill out `personal_info.json` first (phone, location, nationality, additional_sk
 ```
 Outputs are named from the input PDF (e.g., `LinkedIn_Profile_resume.json`, `LinkedIn_Profile_europass.xml`, `LinkedIn_Profile_SWE.pdf`).
 Add `-Basic` to keep only the original template sections in the LaTeX output.
+Use `-Latinize` to transliterate non-ASCII text and force `pdflatex`, or `-ForcePdfLatex` to skip Unicode engine switching.
 
 ### Optional arguments (defaults)
 Only the LinkedIn PDF path is required; everything else has a sensible default.
@@ -66,6 +67,8 @@ Only the LinkedIn PDF path is required; everything else has a sensible default.
 | `-EuropassConfig` | No | `europass_config.json` |
 | `-SkipEuropass` | No | `false` |
 | `-Basic` | No | `false` |
+| `-Latinize` | No | `false` |
+| `-ForcePdfLatex` | No | `false` |
 
 `json-to-latex-pdf.ps1`:
 
@@ -75,6 +78,8 @@ Only the LinkedIn PDF path is required; everything else has a sensible default.
 | `-Template` | No | `template.tex` |
 | `-TexOut` | No | `resume.tex` |
 | `-Basic` | No | `false` |
+| `-Latinize` | No | `false` |
+| `-ForcePdfLatex` | No | `false` |
 
 Python modules:
 
@@ -95,7 +100,7 @@ Export `resume.json` to Europass Candidate XML (defaults to `resume.json` if omi
 python -m linkedin_resume_parser.europass -m personal_info.json -c europass_config.json -o europass.xml
 ```
 
-Render `resume.json` to LaTeX and PDF (defaults to `resume.json` if omitted; requires MiKTeX or TeX Live for `pdflatex`):
+Render `resume.json` to LaTeX and PDF (defaults to `resume.json` if omitted; uses `xelatex`/`lualatex` when Unicode is detected):
 ```powershell
 .\json-to-latex-pdf.ps1 -Template template.tex -TexOut resume.tex
 ```
@@ -109,6 +114,7 @@ The same flag works with the Python renderer; it will auto-select `template_basi
 ```bash
 python -m linkedin_resume_parser.latex -t template.tex -o resume.tex --basic
 ```
+Add `--latinize` to transliterate non-ASCII text and keep the `pdflatex` pipeline. Use `--font "Font Name"` to override the Unicode font.
 
 ## Files
 - `*_resume.json`: JSON Resume output from the LinkedIn parser.
@@ -119,9 +125,8 @@ python -m linkedin_resume_parser.latex -t template.tex -o resume.tex --basic
 - `europass_config.json`: Europass technical configuration (schemes, rendering, section order, ESCO URI).
 - `*_europass.xml`: Europass Candidate XML output.
 - `*_SWE.tex`: LaTeX output from the resume renderer.
-- `*_SWE.pdf`: PDF output from `pdflatex`.
+- `*_SWE.pdf`: PDF output from the selected LaTeX engine (`pdflatex`, `xelatex`, or `lualatex`).
 
 ## TODO
-- [ ] Handle cyrilic
-- [ ] Explore LinkedIn alternatives
+- [ ] Explore LinkedIn alternatives (hh.ru?)
 - [ ] Write a LinkedIn post about the project
