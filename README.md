@@ -11,18 +11,21 @@ No LLM required. Built via OpenAI Codex.
 - Export JSON Resume to Europass Candidate XML (`europass.xml`) for import into the Europass editor: https://europass.europa.eu/en
 - Render JSON Resume into a customized version of Jake's LaTeX resume template (`resume.tex`) and compile a PDF (`resume.pdf`), including optional sections like summary, certificates, and languages. A base template is also available as `template_basic.tex`.
 
+## Example input and output
+LinkedIn export input (first page) and LaTeX SWE output (first page):
+<p>
+  <img src="assets/readme/linkedin-export.png" width="48%" alt="LinkedIn export PDF" />
+  <img src="assets/readme/swe-output.png" width="48%" alt="LaTeX SWE output PDF" />
+</p>
+
 ## Disclaimer
 LinkedIn PDF parsing is best-effort and may miss or misclassify fields. Always review the generated `resume.json`, `europass.xml`, and `resume.pdf` before using them. If you want to tailor the output to your resume style or data, use AI in this repo to adjust the underlying Python code. Use malformed `resume.json` output and any missing fields to pinpoint what needs fixing.
 
 ## Background
 I keep my LinkedIn profile up to date and wanted a single source of truth that could generate multiple formats: Europass, and a clean PDF using Jake's popular SWE resume template. I then modified Jake's template to include more of LinkedIn profile exports.
 
-## Example output
-LinkedIn export (first page):
-![LinkedIn export PDF](assets/readme/linkedin-export.png)
-
-LaTeX SWE output (first page):
-![LaTeX SWE output PDF](assets/readme/swe-output.png)
+## Why not a web app?
+A hosted web app would need robust PDF parsing and résumé cleanup, which typically means an LLM in the loop. That turns it into a paid service (like sweresume.app 5$ per generation). This repo keeps everything local and scriptable, so if you are an engineer (especially with a Copilot license, personal or work-related), you can clone it and tailor the output quickly. If it helps, all I ask in return is a star on the repo.
 
 ## Template notes
 The LaTeX template in `template.tex` is a modification of Jake's original resume layout. It adds extra sections (summary, certifications, languages) and a compact contact/header layout to fit typical LinkedIn exports.
@@ -47,6 +50,7 @@ Fill out `personal_info.json` first (phone, location, nationality, additional_sk
 Outputs are named from the input PDF (e.g., `LinkedIn_Profile_resume.json`, `LinkedIn_Profile_europass.xml`, `LinkedIn_Profile_SWE.pdf`).
 Add `-Basic` to keep only the original template sections in the LaTeX output.
 Use `-Latinize` to transliterate non-ASCII text and force `pdflatex`, or `-ForcePdfLatex` to skip Unicode engine switching.
+The LaTeX output defaults to a light theme; use `-Dark` for a dark background.
 
 ### Optional arguments (defaults)
 Only the LinkedIn PDF path is required; everything else has a sensible default.
@@ -69,6 +73,7 @@ Only the LinkedIn PDF path is required; everything else has a sensible default.
 | `-Basic` | No | `false` |
 | `-Latinize` | No | `false` |
 | `-ForcePdfLatex` | No | `false` |
+| `-Dark` | No | `false` |
 
 `json-to-latex-pdf.ps1`:
 
@@ -80,6 +85,7 @@ Only the LinkedIn PDF path is required; everything else has a sensible default.
 | `-Basic` | No | `false` |
 | `-Latinize` | No | `false` |
 | `-ForcePdfLatex` | No | `false` |
+| `-Dark` | No | `false` |
 
 Python modules:
 
@@ -114,7 +120,7 @@ The same flag works with the Python renderer; it will auto-select `template_basi
 ```bash
 python -m linkedin_resume_parser.latex -t template.tex -o resume.tex --basic
 ```
-Add `--latinize` to transliterate non-ASCII text and keep the `pdflatex` pipeline. Use `--font "Font Name"` to override the Unicode font.
+Add `--latinize` to transliterate non-ASCII text and keep the `pdflatex` pipeline. Use `--font "Font Name"` to override the Unicode font. Add `--dark` for a dark theme.
 
 ## Files
 - `*_resume.json`: JSON Resume output from the LinkedIn parser.
@@ -129,4 +135,4 @@ Add `--latinize` to transliterate non-ASCII text and keep the `pdflatex` pipelin
 
 ## TODO
 - [ ] Explore LinkedIn alternatives (hh.ru?)
-- [ ] Write a LinkedIn post about the project
+- [ ] Write a LinkedIn post about the project + add to my CV projects

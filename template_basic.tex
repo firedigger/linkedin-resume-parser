@@ -11,7 +11,7 @@
 \usepackage[empty]{fullpage}
 \usepackage{titlesec}
 \usepackage{marvosym}
-\usepackage[usenames,dvipsnames]{color}
+\usepackage[usenames,dvipsnames]{xcolor}
 \usepackage{verbatim}
 \usepackage{enumitem}
 \usepackage[hidelinks]{hyperref}
@@ -19,6 +19,7 @@
 \usepackage[english]{babel}
 \usepackage{tabularx}
 {{FONT_SETUP}}
+{{THEME_COLORS}}
 
 
 %----------FONT OPTIONS----------
@@ -55,7 +56,7 @@
 % Sections formatting
 \titleformat{\section}{
   \vspace{-4pt}\scshape\raggedright\large
-}{}{0em}{}[\color{black}\titlerule \vspace{-5pt}]
+}{}{0em}{}[\color{ResumeRule}\titlerule \vspace{-5pt}]
 
 % Ensure that generate pdf is machine readable/ATS parsable
 {{PDFTEX_SETUP}}
@@ -104,6 +105,7 @@
 
 
 \begin{document}
+{{THEME_SETUP}}
 
 \begin{center}
     \textbf{\Huge \scshape {{NAME}}} \\ \vspace{1pt}

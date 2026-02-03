@@ -4,7 +4,8 @@ param(
     [string]$TexOut = "resume.tex",
     [switch]$Basic,
     [switch]$Latinize,
-    [switch]$ForcePdfLatex
+    [switch]$ForcePdfLatex,
+    [switch]$Dark
 )
 
 $latexArgs = @()
@@ -23,6 +24,10 @@ if ($Basic) {
 if ($Latinize) {
     $latexArgs += "--latinize"
     $forcePdfLatexLocal = $true
+}
+
+if ($Dark) {
+    $latexArgs += "--dark"
 }
 
 python -m linkedin_resume_parser.latex $Resume -t $templatePath -o $TexOut @latexArgs

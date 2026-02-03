@@ -33,6 +33,7 @@ def render_resume_latex(
     basic_mode: bool = False,
     latinize: bool = False,
     font_name: str | None = None,
+    theme: str = "light",
 ) -> None:
     resume = load_json(resume_path)
     global _LATINIZE
@@ -45,6 +46,7 @@ def render_resume_latex(
         basic_mode=basic_mode,
         unicode_enabled=unicode_enabled,
         font_name=font_name,
+        theme=theme,
     )
     output_path.write_text(rendered, encoding="utf-8")
 
@@ -55,6 +57,7 @@ def apply_template(
     basic_mode: bool = False,
     unicode_enabled: bool = False,
     font_name: str | None = None,
+    theme: str = "light",
 ) -> str:
     basics = resume.get("basics", {})
     name = latex_escape(basics.get("name", ""))
@@ -96,6 +99,8 @@ def apply_template(
         font_setup = "\\usepackage[T1]{fontenc}\n\\usepackage{lmodern}"
         pdftex_setup = "\\input{glyphtounicode}\n\\pdfgentounicode=1"
 
+    theme_colors, theme_setup = build_theme(theme)
+
     replacements = {
         "{{NAME}}": name,
         "{{LABEL_LINE}}": label_line,
@@ -110,6 +115,8 @@ def apply_template(
         "{{LANGUAGES_SECTION}}": languages_section,
         "{{FONT_SETUP}}": font_setup,
         "{{PDFTEX_SETUP}}": pdftex_setup,
+        "{{THEME_COLORS}}": theme_colors,
+        "{{THEME_SETUP}}": theme_setup,
     }
     for token, value in replacements.items():
         template = template.replace(token, value)
@@ -243,10 +250,11 @@ def build_experience_entries(work: list[dict[str, Any]]) -> str:
             f"\n      {{{company}}}{{{dates}}}\n"
             f"      {{{role}}}{{{location}}}"
         )
-        items = []
         summary = (entry.get("summary") or "").strip()
         if summary:
-            items.append(summary)
+            lines.append(f"      \\small{{{latex_escape(summary)}}}")
+            lines.append("      \\vspace{-2pt}")
+        items = []
         for highlight in entry.get("highlights") or []:
             if highlight:
                 items.append(highlight)
@@ -576,6 +584,29 @@ def load_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def build_theme(theme: str) -> tuple[str, str]:
+    if theme == "light":
+        colors = (
+            "\\definecolor{ResumeBg}{HTML}{FFFFFF}\n"
+            "\\definecolor{ResumeText}{HTML}{111111}\n"
+            "\\definecolor{ResumeRule}{HTML}{111111}\n"
+            "\\definecolor{ResumeLink}{HTML}{005A9C}\n"
+        )
+    else:
+        colors = (
+            "\\definecolor{ResumeBg}{HTML}{0F1115}\n"
+            "\\definecolor{ResumeText}{HTML}{E6E6E6}\n"
+            "\\definecolor{ResumeRule}{HTML}{9AA4B2}\n"
+            "\\definecolor{ResumeLink}{HTML}{6FB1FF}\n"
+        )
+    setup = (
+        "\\pagecolor{ResumeBg}\n"
+        "\\color{ResumeText}\n"
+        "\\hypersetup{colorlinks=true, urlcolor=ResumeLink, linkcolor=ResumeLink}\n"
+    )
+    return colors, setup
+
+
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Render resume.json into a LaTeX template."
@@ -615,6 +646,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--font",
         help="Font name for Unicode output (used with xelatex/lualatex).",
     )
+    parser.add_argument(
+        "--dark",
+        action="store_true",
+        help="Use dark theme output (default is light).",
+    )
     return parser
 
 
@@ -626,6 +662,9 @@ def main() -> int:
         basic_template = Path("template_basic.tex")
         if basic_template.exists():
             template_path = basic_template
+    theme = "dark" if args.dark else "light"
+    if args.basic:
+        theme = "light"
     render_resume_latex(
         args.resume,
         template_path,
@@ -633,6 +672,7 @@ def main() -> int:
         basic_mode=args.basic,
         latinize=args.latinize,
         font_name=args.font,
+        theme=theme,
     )
     return 0
 

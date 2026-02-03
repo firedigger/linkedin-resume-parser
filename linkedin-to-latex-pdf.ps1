@@ -13,7 +13,8 @@ param(
     [switch]$SkipEuropass,
     [switch]$Basic,
     [switch]$Latinize,
-    [switch]$ForcePdfLatex
+    [switch]$ForcePdfLatex,
+    [switch]$Dark
 )
 
 if (-not (Test-Path $LinkedInPdf)) {
@@ -66,6 +67,10 @@ if ($Basic) {
 if ($Latinize) {
     $latexArgs += "--latinize"
     $forcePdfLatexLocal = $true
+}
+
+if ($Dark) {
+    $latexArgs += "--dark"
 }
 
 python -m linkedin_resume_parser.latex $ResumeJson -t $templatePath -o $TexOut @latexArgs
