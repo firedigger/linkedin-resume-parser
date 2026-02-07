@@ -27,7 +27,7 @@ This repo is a CLI pipeline for turning a LinkedIn PDF into JSON Resume, Europas
 - Check `*_resume.json` first; it is the single source of truth for later steps.
 - If LaTeX fails, inspect the `*.pdflatex.log` next to the output PDF.
 - If something looks wrong in the PDF but `resume.json` is correct, the issue is likely in `latex.py` or the template.
-- Keep `--basic` behavior aligned with the original template defaults.
+- Keep `--basic` behavior aligned with the original template defaults. DO NOT change `template_basic` unless the code change would break it untouched
 - You can convert PDF pages to images to inspect what the parser sees, for example:
   - `pdftoppm -f 1 -l 1 -singlefile -png -scale-to-x 1400 -scale-to-y -1 "LinkedIn_Profile.pdf" "page1"`
 
@@ -38,3 +38,7 @@ This repo is a CLI pipeline for turning a LinkedIn PDF into JSON Resume, Europas
   - `python -m linkedin_resume_parser.europass -m personal_info.json -c europass_config.json -o europass.xml`
 - LaTeX only:
   - `python -m linkedin_resume_parser.latex -t template.tex -o resume.tex`
+
+In all other cases just run the raw powershell pipeline with minimal arguments to help the user `.\linkedin-to-latex-pdf.ps1` with the file in question.
+
+Inspect `README.md` for more info on the project.

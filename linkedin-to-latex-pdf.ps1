@@ -86,6 +86,16 @@ if (-not $outputDir) {
 $pdfName = [IO.Path]::GetFileNameWithoutExtension($TexOut) + ".pdf"
 $pdfPath = Join-Path $outputDir $pdfName
 
+# If the PDF already exists, LaTeX (dvipdfmx) may fail to overwrite it when the file
+# is open in a viewer (Windows file lock). Remove it up front for a clearer failure mode.
+if (Test-Path $pdfPath) {
+    try {
+        Remove-Item -Force -ErrorAction Stop $pdfPath
+    } catch {
+        throw "Output PDF is locked or not writable: $pdfPath. Close any viewer holding it and re-run."
+    }
+}
+
 $texContent = Get-Content -Path $TexOut -Raw -Encoding UTF8
 $hasNonAscii = $texContent -match '[^\u0000-\u007F]'
 

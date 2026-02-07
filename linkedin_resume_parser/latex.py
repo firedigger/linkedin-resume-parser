@@ -253,7 +253,6 @@ def build_experience_entries(work: list[dict[str, Any]]) -> str:
         summary = (entry.get("summary") or "").strip()
         if summary:
             lines.append(f"      \\small{{{latex_escape(summary)}}}")
-            lines.append("      \\vspace{-2pt}")
         items = []
         for highlight in entry.get("highlights") or []:
             if highlight:
