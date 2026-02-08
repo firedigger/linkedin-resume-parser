@@ -97,7 +97,7 @@ def apply_template(
             )
         pdftex_setup = ""
     else:
-        font_setup = "\\usepackage[T1]{fontenc}\n\\usepackage{lmodern}"
+        font_setup = "\\usepackage[T1]{fontenc}\n\\usepackage{tgtermes}"
         pdftex_setup = "\\input{glyphtounicode}\n\\pdfgentounicode=1"
 
     theme_colors, theme_setup = build_theme(theme)
