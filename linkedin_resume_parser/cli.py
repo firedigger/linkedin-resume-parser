@@ -165,8 +165,8 @@ def merge_certifications_csv(resume: dict, path: Path) -> bool:
             key = name.lower()
             issuer = normalize_name(row.get("Authority"))
             url = normalize_name(row.get("Url"))
-            date_raw = normalize_name(row.get("Finished On")) or normalize_name(
-                row.get("Started On")
+            date_raw = normalize_name(row.get("Started On")) or normalize_name(
+                row.get("Finished On")
             )
             date_value = parse_year_month(date_raw)
 

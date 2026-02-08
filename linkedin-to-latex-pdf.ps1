@@ -22,6 +22,7 @@ if (-not (Test-Path $LinkedInPdf)) {
 }
 
 $baseName = [IO.Path]::GetFileNameWithoutExtension($LinkedInPdf)
+$texOutProvided = -not [string]::IsNullOrWhiteSpace($TexOut)
 if ([string]::IsNullOrWhiteSpace($ResumeJson)) {
     $ResumeJson = "${baseName}_resume.json"
 }
@@ -35,6 +36,35 @@ if ([string]::IsNullOrWhiteSpace($EuropassXml)) {
 python -m linkedin_resume_parser.cli $LinkedInPdf -o $ResumeJson --personal-info $PersonalInfo --skills-csv $SkillsCsv --certifications-csv $CertificationsCsv --projects-csv $ProjectsCsv
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
+}
+
+$desiredPdfBase = $null
+if (-not $texOutProvided) {
+    try {
+        $resumeData = Get-Content -Path $ResumeJson -Raw -Encoding UTF8 | ConvertFrom-Json
+        $resumeName = ($resumeData.basics.name | ForEach-Object { $_.ToString().Trim() }) -join ""
+        if (-not [string]::IsNullOrWhiteSpace($resumeName)) {
+            $invalidChars = [IO.Path]::GetInvalidFileNameChars()
+            $safeName = ($resumeName.ToCharArray() | ForEach-Object {
+                if ($invalidChars -contains $_) { " " } else { $_ }
+            }) -join ""
+            $safeName = ($safeName -replace "\s+", " ").Trim()
+            if (-not [string]::IsNullOrWhiteSpace($safeName)) {
+                $desiredPdfBase = "$safeName CV"
+                if ($Basic) {
+                    $desiredPdfBase += " Basic"
+                }
+            }
+        }
+    } catch {
+        $desiredPdfBase = $null
+    }
+    if (-not $desiredPdfBase) {
+        $desiredPdfBase = $baseName
+        if ($Basic) {
+            $desiredPdfBase += "_basic"
+        }
+    }
 }
 
 if (-not $SkipEuropass) {
@@ -85,6 +115,10 @@ if (-not $outputDir) {
 
 $pdfName = [IO.Path]::GetFileNameWithoutExtension($TexOut) + ".pdf"
 $pdfPath = Join-Path $outputDir $pdfName
+$desiredPdfPath = $pdfPath
+if ($desiredPdfBase) {
+    $desiredPdfPath = Join-Path $outputDir ($desiredPdfBase + ".pdf")
+}
 
 # If the PDF already exists, LaTeX (dvipdfmx) may fail to overwrite it when the file
 # is open in a viewer (Windows file lock). Remove it up front for a clearer failure mode.
@@ -131,6 +165,17 @@ if ($exitCode -ne 0 -or -not (Test-Path $pdfPath)) {
         Get-Content $logPath -Tail 40
     }
     exit 1
+}
+
+if ($desiredPdfPath -ne $pdfPath) {
+    if (Test-Path $desiredPdfPath) {
+        try {
+            Remove-Item -Force -ErrorAction Stop $desiredPdfPath
+        } catch {
+            throw "Output PDF is locked or not writable: $desiredPdfPath. Close any viewer holding it and re-run."
+        }
+    }
+    Move-Item -Force $pdfPath $desiredPdfPath
 }
 
 exit 0
