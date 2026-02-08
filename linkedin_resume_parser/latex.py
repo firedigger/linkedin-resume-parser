@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import json
 from datetime import datetime
 from pathlib import Path
@@ -193,6 +194,7 @@ def build_summary_section(basics: dict[str, Any]) -> str:
     if not summary:
         return ""
     summary_text = latex_escape(summary)
+    summary_text = re.sub(r"\bHobbies:\s*", r"\\\\ Hobbies:\\\\ ", summary_text, flags=re.I)
     return "\\section{Summary}\n  \\small{" + summary_text + "}\n"
 
 

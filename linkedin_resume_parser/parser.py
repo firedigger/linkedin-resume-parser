@@ -212,6 +212,8 @@ def parse_pdf(path: str) -> dict:
     volunteer = parse_volunteer(sections.get("volunteer", []))
     languages = parse_languages(sections.get("languages", []))
     interests = parse_interests(sections.get("interests", []))
+    hobbies_marker = find_hobbies_marker(lines)
+    add_interests_label_to_summary(basics, interests, hobbies_marker)
 
     resume = {
         "basics": basics,
@@ -225,6 +227,65 @@ def parse_pdf(path: str) -> dict:
         "interests": interests,
     }
     return resume
+
+
+def find_hobbies_marker(lines: list[Line]) -> str:
+    split = detect_column_split(lines)
+    if split is None:
+        return ""
+    hobbies_lines = [line for line in lines if "hobbies:" in line.text.lower()]
+    if not hobbies_lines:
+        return ""
+    best_text = ""
+    best_gap = None
+    for hobby_line in hobbies_lines:
+        hobby_is_left = hobby_line.x0 <= split
+        candidates = [
+            line
+            for line in lines
+            if line.page == hobby_line.page
+            and (line.x0 <= split) != hobby_is_left
+            and line.top >= hobby_line.top
+        ]
+        for line in candidates:
+            text = line.text.strip()
+            if not text or "hobbies" in text.lower():
+                continue
+            gap = line.top - hobby_line.top
+            if best_gap is None or gap < best_gap:
+                best_gap = gap
+                best_text = text
+    return best_text
+
+
+def add_interests_label_to_summary(
+    basics: dict, interests: list[dict], hobbies_marker: str = ""
+) -> None:
+    summary = (basics.get("summary") or "").strip()
+    if not summary:
+        return
+    if re.search(r"\bhobbies\b", summary, re.I):
+        return
+    if not interests and not hobbies_marker:
+        return
+
+    names = [item.get("name", "").strip() for item in interests if item.get("name")]
+    if names:
+        interests_text = ", ".join(names)
+        match = re.search(re.escape(interests_text), summary, re.I)
+        if match:
+            summary = summary[: match.start()] + "Hobbies: " + summary[match.start() :]
+        else:
+            separator = " " if summary and not summary.endswith((".", "!", "?", ":")) else " "
+            summary = summary.rstrip() + separator + f"Hobbies: {interests_text}"
+        basics["summary"] = summary.strip()
+        return
+
+    if hobbies_marker:
+        match = re.search(re.escape(hobbies_marker), summary, re.I)
+        if match:
+            summary = summary[: match.start()] + "Hobbies: " + summary[match.start() :]
+    basics["summary"] = summary.strip()
 
 
 def extract_lines(path: str) -> list[Line]:
