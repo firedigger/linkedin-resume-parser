@@ -1,4 +1,4 @@
-# LinkedIn PDF → JSON Resume / Europass / LaTeX
+# LinkedIn PDF → JSON Resume / Europass XML / LaTeX / SWE PDF
 
 Keep a single source of truth for your resume and export it from a LinkedIn PDF into JSON Resume, Europass XML, and a clean SWE LaTeX/PDF CV. You can customize the output via supplying additional info or editing intermediate outputs.
 For best experience also export LinkedIn data archive from Settings&Privacy to supply the full info to the output.
