@@ -254,7 +254,9 @@ def build_experience_entries(work: list[dict[str, Any]]) -> str:
         )
         summary = (entry.get("summary") or "").strip()
         if summary:
-            lines.append(f"      \\small{{{latex_escape(summary)}}}")
+            lines.append(
+                f"      {{\\small\\noindent {latex_escape(summary)}\\par}}"
+            )
         items = []
         for highlight in entry.get("highlights") or []:
             if highlight:
@@ -343,9 +345,7 @@ def build_skills_section(skills: list[dict[str, Any]]) -> str:
         return ""
     return (
         "\\section{Technical Skills}\n"
-        " \\begin{itemize}[leftmargin=0.15in, label={}]\n"
-        f"    \\small{{\\item{{\n     {names}\n    }}}}\n"
-        " \\end{itemize}\n"
+        f"  {{\\small\\noindent {names}\\par}}\n"
     )
 
 

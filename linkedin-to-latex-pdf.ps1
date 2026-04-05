@@ -1,5 +1,4 @@
 param(
-    [Parameter(Mandatory = $true)]
     [string]$LinkedInPdf,
     [string]$ResumeJson,
     [string]$PersonalInfo = "personal_info.json",
@@ -16,6 +15,10 @@ param(
     [switch]$ForcePdfLatex,
     [switch]$Dark
 )
+
+if ([string]::IsNullOrWhiteSpace($LinkedInPdf)) {
+    throw "Missing required argument: -LinkedInPdf <path-to-pdf>. Example: .\\linkedin-to-latex-pdf.ps1 -LinkedInPdf .\\Profile.pdf"
+}
 
 if (-not (Test-Path $LinkedInPdf)) {
     throw "LinkedIn PDF not found: $LinkedInPdf"
@@ -84,6 +87,7 @@ if (-not $SkipEuropass) {
 $latexArgs = @()
 $templatePath = $Template
 $forcePdfLatexLocal = $ForcePdfLatex
+$useLatinize = $true
 if ($Basic) {
     $latexArgs += "--basic"
     if ($Template -eq "template.tex") {
@@ -94,7 +98,7 @@ if ($Basic) {
     }
 }
 
-if ($Latinize) {
+if ($useLatinize) {
     $latexArgs += "--latinize"
     $forcePdfLatexLocal = $true
 }
@@ -177,5 +181,7 @@ if ($desiredPdfPath -ne $pdfPath) {
     }
     Move-Item -Force $pdfPath $desiredPdfPath
 }
+
+Write-Output (Resolve-Path -LiteralPath $desiredPdfPath)
 
 exit 0
